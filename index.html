@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050505">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ATR Calc</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #050505;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
+        overscroll-behavior: none;
+    }
+
+    :root {
+        --modal-bg: #050505;
+        --modal-border: rgba(255, 255, 255, 0.05);
+        --text-color: #ffffff;
+        --price-int-color: #ffffff;
+        --price-dec-color: #555555;
+        --vert-line-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), transparent);
+        --pill-bg: rgba(255, 255, 255, 0.02);
+        --pill-border: rgba(255, 255, 255, 0.05);
+        --pill-input-color: #cccccc;
+        --action-bar-bg: rgba(255, 255, 255, 0.03);
+        --action-bar-border: rgba(255, 255, 255, 0.05);
+        --action-center-bg: #111111;
+        --action-center-border: rgba(255, 255, 255, 0.2);
+        --action-center-color: #ffffff;
+        --expected-target-color: #444444;
+        --expected-target-hover: #888888;
+        --draw-btn-bg: #000000;
+        --draw-btn-border: rgba(255, 255, 255, 0.4);
+        --draw-btn-color: #ffffff;
+        --close-btn-color: #666666;
+        --close-btn-hover: #ffffff;
+        --exp-green: #00ff66;
+        --exp-red: #ff3333;
+        --exp-glow: drop-shadow(0 0 12px rgba(0, 255, 102, 0.3));
+        --exp-glow-neg: drop-shadow(0 0 12px rgba(255, 51, 51, 0.3));
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --modal-bg: #ffffff;
+            --modal-border: rgba(0, 0, 0, 0.06);
+            --text-color: #222222;
+            --price-int-color: #111111;
+            --price-dec-color: #999999;
+            --vert-line-color: linear-gradient(to bottom, rgba(0, 0, 0, 0.06), transparent);
+            --pill-bg: rgba(0, 0, 0, 0.02);
+            --pill-border: rgba(0, 0, 0, 0.06);
+            --pill-input-color: #333333;
+            --action-bar-bg: rgba(0, 0, 0, 0.02);
+            --action-bar-border: rgba(0, 0, 0, 0.06);
+            --action-center-bg: #ffffff;
+            --action-center-border: rgba(0, 0, 0, 0.08);
+            --action-center-color: #111111;
+            --expected-target-color: #888888;
+            --expected-target-hover: #333333;
+            --draw-btn-bg: #111111;
+            --draw-btn-border: rgba(0, 0, 0, 0.1);
+            --draw-btn-color: #ffffff;
+            --close-btn-color: #aaaaaa;
+            --close-btn-hover: #111111;
+            --exp-green: #00b344;
+            --exp-red: #dd2222;
+            --exp-glow: none;
+            --exp-glow-neg: none;
+        }
+        .action-btn.buy { color: #009940; }
+        .action-btn.buy.active { color: #017D01; }
+    }
+
+    #app {
+        position: relative;
+        width: 100%;
+        max-width: 420px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        margin: 0 auto;
+        background: var(--modal-bg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: max(35px, env(safe-area-inset-top) + 20px) 26px 30px 26px;
+        color: var(--text-color);
+        transition: background 0.3s, color 0.3s, border-color 0.3s;
+    }
+
+    .glow-tl, .glow-br {
+        position: absolute;
+        width: 140px;
+        height: 140px;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .glow-tl {
+        top: 0; left: 0;
+        background: radial-gradient(circle at 0 0, rgba(255, 0, 0, 0.08) 0%, transparent 60%);
+    }
+    .glow-br {
+        bottom: 0; right: 0;
+        background: radial-gradient(circle at 100% 100%, rgba(0, 255, 0, 0.08) 0%, transparent 60%);
+    }
+    @media (prefers-color-scheme: light) {
+        .glow-tl { background: radial-gradient(circle at 0 0, rgba(220, 50, 50, 0) 0%, transparent 60%); }
+        .glow-br { background: radial-gradient(circle at 100% 100%, rgba(0, 180, 70, 0) 0%, transparent 60%); }
+    }
+
+    .app-title {
+        position: relative;
+        z-index: 1;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 2px;
+        color: var(--close-btn-color);
+        text-transform: uppercase;
+    }
+
+    /* Price Section */
+    .price-container {
+        position: relative;
+        z-index: 1;
+        margin-top: 28px;
+        margin-bottom: 5px;
+        width: 100%;
+        text-align: center;
+    }
+    .price-display {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        pointer-events: none;
+        min-height: 76px;
+    }
+    .price-int {
+        font-size: 60px;
+        font-weight: 300;
+        letter-spacing: -2px;
+        color: var(--price-int-color);
+    }
+    .price-dec {
+        font-size: 20px;
+        font-weight: 300;
+        color: var(--price-dec-color);
+    }
+    .price-input-overlay {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        opacity: 0;
+        cursor: text;
+        font-size: 60px;
+        text-align: center;
+        border: none;
+        background: transparent;
+    }
+    .price-label {
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        color: var(--expected-target-color);
+        margin-top: 2px;
+    }
+
+    /* Copy buttons (entry price + target price) */
+    .copy-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 4px;
+    }
+    .copy-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: 12px;
+        background: var(--pill-bg);
+        border: 1px solid var(--pill-border);
+        color: var(--close-btn-color);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        user-select: none;
+        visibility: hidden;
+        transition: color 0.15s, background 0.15s;
+    }
+    .copy-btn.visible { visibility: visible; }
+    .copy-btn:active { opacity: 0.6; }
+    .copy-btn svg { flex-shrink: 0; }
+    .copy-btn.copied {
+        color: #33cc66;
+        border-color: rgba(51,204,102,0.4);
+    }
+
+    .vert-line {
+        position: relative; z-index: 1;
+        width: 1px;
+        height: 26px;
+        background: var(--vert-line-color);
+        margin: 10px auto 20px auto;
+    }
+
+    /* Pills */
+    .pills-row {
+        position: relative; z-index: 1;
+        display: flex;
+        gap: 12px;
+        margin-bottom: 26px;
+        width: 100%;
+        justify-content: center;
+    }
+    .pill {
+        display: flex;
+        align-items: center;
+        background: var(--pill-bg);
+        border: 1px solid var(--pill-border);
+        border-radius: 20px;
+        padding: 8px 14px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #888;
+        letter-spacing: 0.5px;
+    }
+    .pill input {
+        background: transparent;
+        border: none;
+        color: var(--pill-input-color);
+        font-size: 13px;
+        font-weight: 500;
+        outline: none;
+        width: 78px;
+        margin-left: 6px;
+        font-family: inherit;
+    }
+    .pill-mult input {
+        width: 32px;
+        text-align: center;
+        margin-left: 6px;
+        margin-right: 4px;
+    }
+    .mult-arrows {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 3px;
+    }
+    .mult-arrows svg { cursor: pointer; padding: 2px; }
+
+    /* Buy/Sell Segmented Control */
+    .action-bar {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 52px;
+        border-radius: 26px;
+        background: var(--action-bar-bg);
+        border: 1px solid var(--action-bar-border);
+        display: flex;
+        overflow: hidden;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        margin-bottom: 36px;
+    }
+    .action-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 1.5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        user-select: none;
+    }
+    .action-btn:active { opacity: 0.7; }
+    .action-btn.sell {
+        color: #cc3333;
+        background: linear-gradient(90deg, rgba(255,0,0,0.1) 0%, rgba(255,0,0,0.03) 100%);
+    }
+    .action-btn.sell.active {
+        color: #ff5555;
+        text-shadow: 0 0 12px rgba(255,0,0,0.8);
+    }
+    .action-btn.sell.dimmed {
+        background: linear-gradient(90deg, rgba(255,0,0,0.06) 0%, rgba(255,0,0,0.02) 100%);
+        color: #773333;
+        text-shadow: none;
+    }
+    .action-btn.buy {
+        color: #33cc66;
+        background: linear-gradient(270deg, rgba(0,255,0,0.1) 0%, rgba(0,255,0,0.03) 100%);
+    }
+    .action-btn.buy.active {
+        color: #017D01;
+        text-shadow: none;
+    }
+    .action-btn.buy.dimmed {
+        background: linear-gradient(270deg, rgba(0,255,0,0.06) 0%, rgba(0,255,0,0.02) 100%);
+        color: #337744;
+        text-shadow: none;
+    }
+    .action-center {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 38px; height: 38px;
+        border-radius: 50%;
+        background: var(--action-center-bg);
+        border: 1px solid var(--action-center-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--action-center-color);
+        z-index: 3;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        cursor: pointer;
+        transition: transform 0.15s;
+    }
+    .action-center:active { transform: translate(-50%, -50%) scale(0.92); }
+    .action-glow {
+        position: absolute;
+        inset: 0;
+        border-radius: 26px;
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .action-glow.buy-glow {
+        background: linear-gradient(270deg,
+            rgba(0,255,0,0.45) 0%, rgba(0,255,0,0.20) 25%,
+            transparent 42%, transparent 62%,
+            rgba(255,0,0,0.06) 82%, rgba(255,0,0,0.12) 95%, rgba(255,0,0,0.15) 100%);
+        opacity: 1;
+    }
+    .action-glow.sell-glow {
+        background: linear-gradient(90deg,
+            rgba(255,0,0,0.45) 0%, rgba(255,0,0,0.20) 25%,
+            transparent 42%, transparent 62%,
+            rgba(0,255,0,0.06) 82%, rgba(0,255,0,0.12) 95%, rgba(0,255,0,0.15) 100%);
+        opacity: 1;
+    }
+
+    /* Expected Move */
+    .expected-move-container {
+        position: relative; z-index: 1;
+        text-align: center;
+        margin-bottom: 28px;
+        min-height: 76px;
+    }
+    .expected-perc {
+        font-size: 30px;
+        font-weight: 400;
+        letter-spacing: 1px;
+        display: inline-block;
+        width: 100%;
+        background: linear-gradient(90deg, var(--exp-green) 0%, var(--exp-green) 40%, var(--text-color) 85%, var(--text-color) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        filter: var(--exp-glow);
+    }
+    .expected-perc.negative {
+        background: linear-gradient(90deg, var(--exp-red) 0%, var(--exp-red) 40%, var(--text-color) 85%, var(--text-color) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        filter: var(--exp-glow-neg);
+    }
+    .expected-target {
+        margin-top: 8px;
+        font-size: 14px;
+        color: var(--expected-target-color);
+        letter-spacing: 0.5px;
+        cursor: copy;
+        transition: color 0.2s;
+    }
+
+    .spacer { flex: 1; min-height: 10px; }
+
+    /* Scan Button */
+    .scan-btn-row {
+        position: relative; z-index: 1;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        margin-top: 4px;
+        margin-bottom: 4px;
+    }
+    .scan-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--pill-bg);
+        border: 1px solid var(--pill-border);
+        border-radius: 20px;
+        padding: 9px 18px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: var(--pill-input-color);
+        cursor: pointer;
+        user-select: none;
+    }
+    .scan-btn:active { opacity: 0.6; }
+    .scan-btn svg { color: var(--close-btn-hover); }
+
+    /* Scan Overlay */
+    #scanOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 500;
+        background: #000;
+        display: none;
+        flex-direction: column;
+    }
+    #scanOverlay.open { display: flex; }
+    .scan-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: max(16px, env(safe-area-inset-top)) 18px 12px 18px;
+        background: #050505;
+        border-bottom: 1px solid var(--modal-border);
+    }
+    .scan-title { font-size: 13px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-color); }
+    .scan-close {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: var(--pill-bg);
+        border: 1px solid var(--pill-border);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--close-btn-color);
+        cursor: pointer;
+    }
+    .scan-instructions {
+        padding: 10px 18px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--expected-target-hover);
+        background: #0a0a0a;
+        border-bottom: 1px solid var(--modal-border);
+    }
+    .scan-instructions b.price-tag { color: #4dd2ff; }
+    .scan-instructions b.atr-tag { color: #ffb84d; }
+    .scan-canvas-wrap {
+        flex: 1;
+        position: relative;
+        overflow: auto;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        background: #000;
+        touch-action: none;
+    }
+    #scanCanvas {
+        display: block;
+        touch-action: none;
+        max-width: 100%;
+    }
+    .scan-mode-row {
+        display: flex;
+        gap: 10px;
+        padding: 12px 18px;
+        background: #050505;
+        border-top: 1px solid var(--modal-border);
+    }
+    .scan-mode-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 11px 8px;
+        border-radius: 14px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        border: 1.5px solid var(--pill-border);
+        background: var(--pill-bg);
+        color: var(--expected-target-hover);
+        cursor: pointer;
+        user-select: none;
+    }
+    .scan-mode-btn .dot { width: 9px; height: 9px; border-radius: 50%; }
+    .scan-mode-btn.price .dot { background: #4dd2ff; }
+    .scan-mode-btn.atr .dot { background: #ffb84d; }
+    .scan-mode-btn.active.price { border-color: #4dd2ff; color: #4dd2ff; background: rgba(77,210,255,0.08); }
+    .scan-mode-btn.active.atr { border-color: #ffb84d; color: #ffb84d; background: rgba(255,184,77,0.08); }
+    .scan-mode-btn .check { display: none; }
+    .scan-mode-btn.done .check { display: inline; }
+
+    .scan-footer {
+        display: flex;
+        gap: 10px;
+        padding: 12px 18px max(16px, env(safe-area-inset-bottom)) 18px;
+        background: #050505;
+    }
+    .scan-action-btn {
+        flex: 1;
+        padding: 14px;
+        border-radius: 16px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-align: center;
+        cursor: pointer;
+        user-select: none;
+        border: 1px solid var(--pill-border);
+    }
+    .scan-action-btn.secondary {
+        background: var(--pill-bg);
+        color: var(--expected-target-hover);
+    }
+    .scan-action-btn.primary {
+        background: #ffffff;
+        color: #000000;
+        border: none;
+    }
+    .scan-action-btn.primary.disabled {
+        background: #333;
+        color: #777;
+        pointer-events: none;
+    }
+    .scan-action-btn:active { opacity: 0.7; }
+
+    .scan-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 600;
+        background: rgba(0,0,0,0.85);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 14px;
+    }
+    .scan-loading.show { display: flex; }
+    .spinner {
+        width: 34px; height: 34px;
+        border: 3px solid rgba(255,255,255,0.15);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .scan-loading-text { font-size: 12px; color: #aaa; letter-spacing: 0.5px; }
+
+    #fileInput { display: none; }
+
+    .toast {
+        position: fixed;
+        left: 50%;
+        bottom: max(28px, env(safe-area-inset-bottom) + 16px);
+        transform: translateX(-50%) translateY(10px);
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 13px;
+        z-index: 999;
+        opacity: 0;
+        transition: opacity 0.25s ease, transform 0.25s ease;
+        pointer-events: none;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        background-color: #1a1a1a;
+        color: white;
+        border: 1px solid #22c55e;
+        max-width: 88%;
+        text-align: center;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+</style>
+</head>
+<body>
+
+<div id="app">
+    <div class="glow-tl"></div>
+    <div class="glow-br"></div>
+
+    <div class="app-title">ATR MOVE CALCULATOR</div>
+
+    <!-- Price -->
+    <div class="price-container">
+        <div class="price-display" id="priceDisplay">
+            <span class="price-int" id="priceInt">0</span><span class="price-dec" id="priceDec">.00</span>
+        </div>
+        <input id="priceInput" class="price-input-overlay" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="Price">
+        <div class="price-label">TAP TO ENTER PRICE</div>
+        <div class="copy-row">
+            <div class="copy-btn" id="copyEntryBtn">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span id="copyEntryLabel">COPY ENTRY</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="vert-line"></div>
+
+    <!-- Pills -->
+    <div class="pills-row">
+        <div class="pill">
+            ATR <input id="atrInput" type="text" inputmode="decimal" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="pill pill-mult">
+            × <input id="multInput" type="text" inputmode="decimal" value="1.0" autocomplete="off" spellcheck="false">
+            <div class="mult-arrows">
+                <svg width="9" height="7" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="3" id="multUp"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                <svg width="9" height="7" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="3" id="multDown"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scan Button -->
+    <div class="scan-btn-row">
+        <div class="scan-btn" id="openScanBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+                <line x1="7" y1="12" x2="17" y2="12"/>
+            </svg>
+            SCAN SCREENSHOT
+        </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="action-bar">
+        <div class="action-glow" id="actionGlow"></div>
+        <div class="action-btn sell" id="sellBtn">SELL</div>
+        <div class="action-center" id="swapBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                <path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+            </svg>
+        </div>
+        <div class="action-btn buy" id="buyBtn">BUY</div>
+    </div>
+
+    <!-- Expected Move -->
+    <div class="expected-move-container">
+        <div class="expected-perc" id="resultPerc" style="visibility:hidden;">+0.00%</div>
+        <div class="expected-target" id="resultTarget" title="Copy to clipboard" style="visibility:hidden;">0.00</div>
+        <div class="copy-row">
+            <div class="copy-btn" id="copyTargetBtn">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span id="copyTargetLabel">COPY TARGET</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="spacer"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Scan Overlay -->
+<div id="scanOverlay">
+    <div class="scan-header">
+        <div class="scan-title">Scan Screenshot</div>
+        <div class="scan-close" id="scanCloseBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </div>
+    </div>
+    <div class="scan-instructions" id="scanInstructions">
+        Draw a box around the <b class="price-tag">PRICE</b> value, then switch mode and draw a box around the <b class="atr-tag">ATR</b> value.
+    </div>
+    <div class="scan-canvas-wrap" id="scanCanvasWrap">
+        <canvas id="scanCanvas"></canvas>
+    </div>
+    <div class="scan-mode-row">
+        <div class="scan-mode-btn price active" id="modePriceBtn">
+            <span class="dot"></span><span>PRICE BOX</span><span class="check">✓</span>
+        </div>
+        <div class="scan-mode-btn atr" id="modeAtrBtn">
+            <span class="dot"></span><span>ATR BOX</span><span class="check">✓</span>
+        </div>
+    </div>
+    <div class="scan-footer">
+        <div class="scan-action-btn secondary" id="scanClearBtn">CLEAR BOXES</div>
+        <div class="scan-action-btn primary disabled" id="scanRunBtn">SCAN BOTH</div>
+    </div>
+</div>
+
+<div class="scan-loading" id="scanLoading">
+    <div class="spinner"></div>
+    <div class="scan-loading-text" id="scanLoadingText">Reading values…</div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*">
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+(function () {
+    const priceInput  = document.getElementById('priceInput');
+    const priceInt    = document.getElementById('priceInt');
+    const priceDec    = document.getElementById('priceDec');
+    const atrInput    = document.getElementById('atrInput');
+    const multInput   = document.getElementById('multInput');
+    const buyBtn      = document.getElementById('buyBtn');
+    const sellBtn     = document.getElementById('sellBtn');
+    const swapBtn     = document.getElementById('swapBtn');
+    const actionGlow  = document.getElementById('actionGlow');
+    const resultPerc  = document.getElementById('resultPerc');
+    const resultTarget = document.getElementById('resultTarget');
+    const toast       = document.getElementById('toast');
+    const copyEntryBtn   = document.getElementById('copyEntryBtn');
+    const copyEntryLabel = document.getElementById('copyEntryLabel');
+    const copyTargetBtn   = document.getElementById('copyTargetBtn');
+    const copyTargetLabel = document.getElementById('copyTargetLabel');
+
+    let direction = null;       // 'buy' | 'sell'
+    let exactTargetPrice = null;
+
+    function showToast(msg) {
+        toast.innerText = msg;
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    // Copies text to the clipboard. Tries the modern Clipboard API first; if that
+    // throws for ANY reason (permission denied, no secure context, no user-activation,
+    // browser quirk), it falls back to the classic execCommand method rather than
+    // letting the failure propagate silently.
+    async function copyText(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (e) {
+                // fall through to legacy method below
+            }
+        }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.top = '0';
+            ta.style.left = '-9999px';
+            ta.readOnly = true;
+            ta.style.fontSize = '16px'; // avoids iOS zoom-on-focus
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.setSelectionRange(0, text.length);
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Briefly flips a copy button to a "Copied" state so the tap has visible feedback
+    // beyond the toast, then reverts after a short delay.
+    function flashCopied(btn, label, originalText) {
+        btn.classList.add('copied');
+        label.innerText = 'COPIED';
+        clearTimeout(btn._t);
+        btn._t = setTimeout(() => {
+            btn.classList.remove('copied');
+            label.innerText = originalText;
+        }, 1200);
+    }
+
+    copyEntryBtn.addEventListener('click', async () => {
+        const val = priceInput.value;
+        if (!val) return;
+        try {
+            const ok = await copyText(val);
+            if (ok) {
+                flashCopied(copyEntryBtn, copyEntryLabel, 'COPY ENTRY');
+                showToast('📋 Entry price copied!');
+            } else {
+                showToast('Copy failed — long-press to select');
+            }
+        } catch (e) {
+            showToast('Copy failed — long-press to select');
+        }
+    });
+
+    copyTargetBtn.addEventListener('click', async () => {
+        if (exactTargetPrice === null) return;
+        try {
+            const ok = await copyText(exactTargetPrice.toFixed(6));
+            if (ok) {
+                flashCopied(copyTargetBtn, copyTargetLabel, 'COPY TARGET');
+                showToast('📋 Target price copied!');
+            } else {
+                showToast('Copy failed — long-press to select');
+            }
+        } catch (e) {
+            showToast('Copy failed — long-press to select');
+        }
+    });
+
+    function updatePriceDisplay() {
+        const val = priceInput.value;
+        const parts = val.split('.');
+        if (parts.length > 1) {
+            priceInt.innerText = parts[0] || '0';
+            priceDec.innerText = '.' + parts.slice(1).join('');
+        } else {
+            priceInt.innerText = val || '0';
+            priceDec.innerText = '';
+        }
+        const priceNum = parseFloat(String(val).replace(/,/g, ''));
+        copyEntryBtn.classList.toggle('visible', !isNaN(priceNum) && val !== '');
+    }
+    priceInput.addEventListener('input', () => { updatePriceDisplay(); recalcIfReady(); });
+    atrInput.addEventListener('input', recalcIfReady);
+    multInput.addEventListener('input', recalcIfReady);
+
+    document.getElementById('multUp').addEventListener('click', () => {
+        let v = parseFloat(multInput.value) || 1.0;
+        multInput.value = (v + 0.1).toFixed(1);
+        recalcIfReady();
+    });
+    document.getElementById('multDown').addEventListener('click', () => {
+        let v = parseFloat(multInput.value) || 1.0;
+        if (v > 0.1) multInput.value = (v - 0.1).toFixed(1);
+        recalcIfReady();
+    });
+
+    // Same formula as content.js doCalculateAndSend()
+    function calculate(dir) {
+        const price = parseFloat(String(priceInput.value).replace(/,/g, ''));
+        const atr   = parseFloat(String(atrInput.value).replace(/,/g, ''));
+        const m     = parseFloat(String(multInput.value).replace(/,/g, ''));
+
+        if (isNaN(price)) { priceInput.focus(); return; }
+        if (isNaN(atr))   { atrInput.focus(); return; }
+        if (isNaN(m) || m <= 0) { multInput.focus(); return; }
+
+        const effectiveAtr = atr * m;
+
+        let T, M, delta, nabla, finalResult;
+        if (price <= 1) {
+            T = price;
+            M = 1 + (0.15 / (1 + Math.exp(-10 * (T - 1)))) + (4 / Math.pow(125 * T, 0.14));
+            delta = (effectiveAtr / price) * M * 100;
+            finalResult = delta;
+        } else {
+            T = 1 / price;
+            M = 1 + (0.15 / (1 + Math.exp(-10 * (T - 1)))) + (4 / Math.pow(125 * T, 0.14));
+            delta = (effectiveAtr / price) * M * 100;
+            nabla = ((100 / (100 + delta)) - 1) * 100;
+            finalResult = nabla;
+        }
+
+        let N = Math.abs(finalResult);
+        if (dir === 'sell') N = -N;
+
+        const isPositive = N > 0;
+        const sign = isPositive ? '+' : '';
+        resultPerc.innerText = sign + N.toFixed(4) + '%';
+        resultPerc.className = isPositive ? 'expected-perc' : 'expected-perc negative';
+        resultPerc.style.visibility = 'visible';
+
+        exactTargetPrice = price * (1 + N / 100);
+        resultTarget.innerText = exactTargetPrice.toFixed(6);
+        resultTarget.style.visibility = 'visible';
+        copyTargetBtn.classList.add('visible');
+    }
+
+    function recalcIfReady() {
+        if (direction) calculate(direction);
+    }
+
+    function setDirection(dir) {
+        direction = dir;
+        if (dir === 'buy') {
+            buyBtn.classList.add('active'); buyBtn.classList.remove('dimmed');
+            sellBtn.classList.remove('active'); sellBtn.classList.add('dimmed');
+            actionGlow.className = 'action-glow buy-glow';
+        } else {
+            sellBtn.classList.add('active'); sellBtn.classList.remove('dimmed');
+            buyBtn.classList.remove('active'); buyBtn.classList.add('dimmed');
+            actionGlow.className = 'action-glow sell-glow';
+        }
+        calculate(dir);
+    }
+
+    buyBtn.addEventListener('click', () => setDirection('buy'));
+    sellBtn.addEventListener('click', () => setDirection('sell'));
+    swapBtn.addEventListener('click', () => {
+        if (!direction) { setDirection('buy'); return; }
+        setDirection(direction === 'buy' ? 'sell' : 'buy');
+    });
+
+    resultTarget.addEventListener('click', async () => {
+        if (exactTargetPrice === null) return;
+        try {
+            const ok = await copyText(exactTargetPrice.toFixed(6));
+            if (ok) {
+                showToast('📋 Target copied!');
+            } else {
+                showToast('Copy failed — long-press to select');
+            }
+        } catch (e) {
+            showToast('Copy failed — long-press to select');
+        }
+    });
+
+    updatePriceDisplay();
+
+    // ─── Scan Screenshot Feature ───────────────────────────────────────────
+
+    const openScanBtn   = document.getElementById('openScanBtn');
+    const scanOverlay    = document.getElementById('scanOverlay');
+    const scanCloseBtn   = document.getElementById('scanCloseBtn');
+    const scanCanvasWrap = document.getElementById('scanCanvasWrap');
+    const scanCanvas     = document.getElementById('scanCanvas');
+    const modePriceBtn   = document.getElementById('modePriceBtn');
+    const modeAtrBtn     = document.getElementById('modeAtrBtn');
+    const scanClearBtn   = document.getElementById('scanClearBtn');
+    const scanRunBtn     = document.getElementById('scanRunBtn');
+    const scanLoading    = document.getElementById('scanLoading');
+    const scanLoadingText = document.getElementById('scanLoadingText');
+    const fileInput      = document.getElementById('fileInput');
+
+    const ctx = scanCanvas.getContext('2d');
+    let loadedImg = null;      // the uploaded image (natural size)
+    let displayScale = 1;      // CSS px per natural px, for touch coord conversion
+    let currentMode = 'price'; // 'price' | 'atr'
+    let boxes = { price: null, atr: null }; // {x,y,w,h} in NATURAL image pixels
+
+    const BOX_COLOR = { price: '#4dd2ff', atr: '#ffb84d' };
+
+    openScanBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const img = new Image();
+        img.onload = () => {
+            loadedImg = img;
+            boxes = { price: null, atr: null };
+            currentMode = 'price';
+            updateModeButtons();
+            openScanOverlay();
+            drawCanvas();
+        };
+        img.src = URL.createObjectURL(file);
+        fileInput.value = '';
+    });
+
+    function openScanOverlay() {
+        scanOverlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeScanOverlay() {
+        scanOverlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    scanCloseBtn.addEventListener('click', closeScanOverlay);
+
+    function drawCanvas() {
+        if (!loadedImg) return;
+        // Fit canvas to available width, keep natural aspect ratio
+        const wrapWidth = scanCanvasWrap.clientWidth || window.innerWidth;
+        const scale = Math.min(1, wrapWidth / loadedImg.naturalWidth);
+        displayScale = scale;
+        const cssW = loadedImg.naturalWidth * scale;
+        const cssH = loadedImg.naturalHeight * scale;
+
+        // Use device pixel ratio for crisp rendering
+        const dpr = window.devicePixelRatio || 1;
+        scanCanvas.width = cssW * dpr;
+        scanCanvas.height = cssH * dpr;
+        scanCanvas.style.width = cssW + 'px';
+        scanCanvas.style.height = cssH + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        ctx.clearRect(0, 0, cssW, cssH);
+        ctx.drawImage(loadedImg, 0, 0, cssW, cssH);
+
+        // Draw existing boxes (convert natural px -> css px)
+        ['price', 'atr'].forEach((key) => {
+            const b = boxes[key];
+            if (!b) return;
+            ctx.strokeStyle = BOX_COLOR[key];
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([]);
+            const x = b.x * scale, y = b.y * scale, w = b.w * scale, h = b.h * scale;
+            ctx.strokeRect(x, y, w, h);
+            ctx.fillStyle = BOX_COLOR[key] + '22';
+            ctx.fillRect(x, y, w, h);
+        });
+
+        // Draw box currently being dragged
+        if (dragCurrent) {
+            ctx.strokeStyle = BOX_COLOR[currentMode];
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([5, 4]);
+            ctx.strokeRect(dragCurrent.x, dragCurrent.y, dragCurrent.w, dragCurrent.h);
+            ctx.setLineDash([]);
+        }
+    }
+
+    window.addEventListener('resize', () => { if (loadedImg) drawCanvas(); });
+
+    // ── Drawing interaction (touch + mouse) ──
+    let dragStart = null;
+    let dragCurrent = null; // in CSS px, for live preview
+
+    function getCanvasPos(evt) {
+        const rect = scanCanvas.getBoundingClientRect();
+        const point = (evt.touches && evt.touches[0]) ? evt.touches[0] : evt;
+        return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+    }
+
+    function onDragStart(evt) {
+        if (!loadedImg) return;
+        evt.preventDefault();
+        const pos = getCanvasPos(evt);
+        dragStart = pos;
+        dragCurrent = { x: pos.x, y: pos.y, w: 0, h: 0 };
+    }
+    function onDragMove(evt) {
+        if (!dragStart) return;
+        evt.preventDefault();
+        const pos = getCanvasPos(evt);
+        const x = Math.min(dragStart.x, pos.x);
+        const y = Math.min(dragStart.y, pos.y);
+        const w = Math.abs(pos.x - dragStart.x);
+        const h = Math.abs(pos.y - dragStart.y);
+        dragCurrent = { x, y, w, h };
+        drawCanvas();
+    }
+    function onDragEnd(evt) {
+        if (!dragStart || !dragCurrent) { dragStart = null; return; }
+        evt.preventDefault();
+        if (dragCurrent.w > 6 && dragCurrent.h > 6) {
+            // Convert CSS px -> natural image px
+            boxes[currentMode] = {
+                x: dragCurrent.x / displayScale,
+                y: dragCurrent.y / displayScale,
+                w: dragCurrent.w / displayScale,
+                h: dragCurrent.h / displayScale
+            };
+            markModeDone(currentMode);
+        }
+        dragStart = null;
+        dragCurrent = null;
+        drawCanvas();
+        updateRunButtonState();
+    }
+
+    scanCanvas.addEventListener('touchstart', onDragStart, { passive: false });
+    scanCanvas.addEventListener('touchmove', onDragMove, { passive: false });
+    scanCanvas.addEventListener('touchend', onDragEnd, { passive: false });
+    scanCanvas.addEventListener('mousedown', onDragStart);
+    scanCanvas.addEventListener('mousemove', onDragMove);
+    scanCanvas.addEventListener('mouseup', onDragEnd);
+
+    function markModeDone(mode) {
+        const btn = mode === 'price' ? modePriceBtn : modeAtrBtn;
+        btn.classList.add('done');
+        // auto-advance to the other mode if it isn't done yet
+        const other = mode === 'price' ? 'atr' : 'price';
+        if (!boxes[other]) setMode(other);
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        updateModeButtons();
+    }
+    function updateModeButtons() {
+        modePriceBtn.classList.toggle('active', currentMode === 'price');
+        modeAtrBtn.classList.toggle('active', currentMode === 'atr');
+        modePriceBtn.classList.toggle('done', !!boxes.price);
+        modeAtrBtn.classList.toggle('done', !!boxes.atr);
+    }
+    modePriceBtn.addEventListener('click', () => setMode('price'));
+    modeAtrBtn.addEventListener('click', () => setMode('atr'));
+
+    scanClearBtn.addEventListener('click', () => {
+        boxes = { price: null, atr: null };
+        updateModeButtons();
+        drawCanvas();
+        updateRunButtonState();
+    });
+
+    function updateRunButtonState() {
+        const ready = !!(boxes.price && boxes.atr);
+        scanRunBtn.classList.toggle('disabled', !ready);
+    }
+
+    // ── OCR ──
+    // A worker is created lazily on first scan and reused for every scan after that —
+    // much faster than spinning one up per crop, and it's the documented way to set
+    // recognition parameters like the digit whitelist.
+    let ocrWorker = null;
+    async function getOcrWorker() {
+        if (ocrWorker) return ocrWorker;
+        scanLoadingText.innerText = 'Loading scanner…';
+        ocrWorker = await Tesseract.createWorker('eng');
+        await ocrWorker.setParameters({
+            tessedit_char_whitelist: '0123456789.,-'
+        });
+        return ocrWorker;
+    }
+
+    scanRunBtn.addEventListener('click', async () => {
+        if (!boxes.price || !boxes.atr || !loadedImg) return;
+        scanLoading.classList.add('show');
+        try {
+            const worker = await getOcrWorker();
+            const priceText = await ocrCrop(worker, boxes.price, 'Reading price…');
+            const atrText = await ocrCrop(worker, boxes.atr, 'Reading ATR…');
+
+            const priceVal = extractNumber(priceText);
+            const atrVal = extractNumber(atrText);
+
+            let filled = 0;
+            if (priceVal !== null) {
+                priceInput.value = priceVal;
+                updatePriceDisplay();
+                filled++;
+            }
+            if (atrVal !== null) {
+                atrInput.value = atrVal;
+                filled++;
+            }
+
+            scanLoading.classList.remove('show');
+            closeScanOverlay();
+
+            if (filled === 2) {
+                showToast('✅ Price & ATR filled — tap BUY or SELL');
+                recalcIfReady();
+            } else if (filled === 1) {
+                showToast('⚠️ Only read one value — check the other box & retry');
+            } else {
+                showToast("❌ Couldn't read those boxes — try tighter crops");
+            }
+        } catch (err) {
+            scanLoading.classList.remove('show');
+            showToast('❌ Scan failed — try again');
+            console.error(err);
+        }
+    });
+
+    // Crop the box out of the full-resolution source image, upscale + threshold for
+    // OCR accuracy, then run it through the persistent worker (whitelist already set).
+    async function ocrCrop(worker, box, loadingMsg) {
+        scanLoadingText.innerText = loadingMsg;
+
+        const cropCanvas = document.createElement('canvas');
+        const UPSCALE = 3; // small crops OCR much better when enlarged
+        cropCanvas.width = Math.max(1, Math.round(box.w * UPSCALE));
+        cropCanvas.height = Math.max(1, Math.round(box.h * UPSCALE));
+        const cctx = cropCanvas.getContext('2d');
+        cctx.imageSmoothingEnabled = true;
+        cctx.drawImage(
+            loadedImg,
+            box.x, box.y, box.w, box.h,
+            0, 0, cropCanvas.width, cropCanvas.height
+        );
+
+        // Simple contrast/threshold pass helps OCR on dark chart backgrounds
+        const imgData = cctx.getImageData(0, 0, cropCanvas.width, cropCanvas.height);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+            const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+            const boosted = gray > 120 ? 255 : (gray < 60 ? 0 : gray);
+            d[i] = d[i + 1] = d[i + 2] = boosted;
+        }
+        cctx.putImageData(imgData, 0, 0);
+
+        const result = await worker.recognize(cropCanvas);
+        return result.data.text || '';
+    }
+
+    // Pull the most plausible numeric value out of raw OCR text
+    function extractNumber(rawText) {
+        if (!rawText) return null;
+        // Strip thousands separators, keep decimal points and minus signs
+        const cleaned = rawText.replace(/,/g, '').trim();
+        const matches = cleaned.match(/-?[0-9]+([.][0-9]+)?/g);
+        if (!matches || matches.length === 0) return null;
+        // Pick the longest match — usually the actual value vs stray fragments
+        matches.sort((a, b) => b.length - a.length);
+        const num = parseFloat(matches[0]);
+        return isNaN(num) ? null : num;
+    }
+
+})();
+</script>
+
+</body>
+</html>
